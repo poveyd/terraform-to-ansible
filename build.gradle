@@ -1,0 +1,53 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+group="com.terraform-to-ansible"
+version = '1.0'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+jar {
+    manifest {
+        attributes 'Description': 'Simple class for generating Ansible inventory file from terraform.tfstate for AWS provider. Author(s) accepts no responsibility nor liability for any negative effects whatsoever arising from the use of this software.',
+                   'Main-Class': 'terraform_to_ansible.TerraformToAnsible'
+    }
+    
+    from {
+    	configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+  	}
+}
+
+repositories {
+     mavenLocal()
+     mavenCentral()
+}
+
+// Versions of common dependencies that sometimes need updating
+ext {
+	slf4jVersion = '1.8.0-beta0'
+	log4jVersion = '1.2.17'
+}
+
+dependencies {
+    compile "commons-cli:commons-cli:1.2",
+    		"com.googlecode.json-simple:json-simple:1.1.1",
+    		"org.slf4j:slf4j-api:${slf4jVersion}",
+    		"org.slf4j:slf4j-log4j12:${slf4jVersion}",
+    		"log4j:log4j:${log4jVersion}",
+    		"commons-io:commons-io:2.6",
+    		"org.apache.commons:commons-lang3:3.7"
+    testCompile "junit:junit:4.+"
+}
+
+test {
+    systemProperties 'property': 'value'
+}
+
+uploadArchives {
+    repositories {
+       flatDir {
+           dirs 'repos'
+       }
+    }
+}
