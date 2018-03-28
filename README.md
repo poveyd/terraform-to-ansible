@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Terraform to Ansible (for AWS)
 
 ## Overview
@@ -18,6 +17,3 @@ You should now have the Ansible inventory file printed on your screen. It is up 
 <code>terraform apply && java -jar terraform_to_ansible.jar -o ~/ansible/hosts && cd ~/ansible && ansible-playbook -i hosts playbook.yml</code>
 
 I prefer this approach since I find it easier than having one all-encompassing utility which handles both Terraform and Ansible for you.
-=======
-# terraform-to-ansible
->>>>>>> f0f3542d68437a24ccf56b656d8651966f73d470
