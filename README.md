@@ -2,7 +2,9 @@
 
 ## Overview
 
-This is a very small utility for generating Ansible inventory files from Terraform tfstate.tf files. When Terraform creates servers in the cloud then it creates a config file which contains details of all the server instances and other resources it creates and saves them in the terraform.tfstate file. This utility reads in this file and creates a list of the servers created in a format understood by Ansible. You can then use Ansible to ensure that the servers have the correct settings and correct software on them.
+This is a very small utility for generating Ansible inventory files from Terraform tfstate.tf files.
+
+When Terraform creates servers in the cloud then it creates a config file which contains details of all the server instances and other resources it creates and saves them in the terraform.tfstate file. This utility reads in this file and creates a list of the servers in a format understood by Ansible. You can then use Ansible to ensure that the servers have the correct settings and correct software on them.
 
 ## How to use it
 
