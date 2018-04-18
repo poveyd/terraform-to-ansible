@@ -12,7 +12,9 @@ When Terraform creates servers in the cloud then it saves details of all the ser
 
 2. Tag your EC2 instances in Terraform using the `Ansible_host` tag (this is case-insensitive). This tag will be used as the name of the host group in the Ansible inventory file.
 
-3. Assuming you have a terraform.tfstate file in your current directory, run: <code>java -jar terraform_to_ansible.jar</code>
+3. Create your EC2 instances using Terraform.
+
+4. Assuming you have a terraform.tfstate file in your current directory, run: <code>java -jar terraform_to_ansible.jar</code>
 
 You should now have the Ansible inventory file printed on your screen. It is up to you whether you redirect this to a file or pass in the -a parameter to get the utility to write it to a file for you.
 
