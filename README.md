@@ -22,9 +22,12 @@ You should now have the Ansible inventory file printed on your screen. It is up 
 
 I have my Ansible playbook in the `~/ansible` directory.
 
-<code>terraform apply && \  <br/>
-java -jar terraform_to_ansible.jar -a ~/ansible/hosts && \  <br/>
-cd ~/ansible && \  <br/>
+<code>terraform apply && \
+
+java -jar terraform_to_ansible.jar -a ~/ansible/hosts && \
+
+cd ~/ansible && \
+
 ansible-playbook -i hosts playbook.yml</code>
 
 I like this approach since I find it easier than using one all-encompassing utility which handles both Terraform and Ansible for you.
