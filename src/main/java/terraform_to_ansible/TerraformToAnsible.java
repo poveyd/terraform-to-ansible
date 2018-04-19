@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,11 +43,13 @@ public final class TerraformToAnsible
 	private final File terraformState;
 	private final String prepend;
 	private final PrintStream ansibleInventory;
+	private final List<String> ansibleTagList;
 	
 	public static void main(String[] args) throws InterruptedException, Exception
 	{
 		Options options = new Options().addOption("tf", "terraform-file", true, "location of terraform.tfstate file")
 									   .addOption("a", "ansible-inventory", true, "name of Ansible inventory file to be created")
+									   .addOption("t", "ansible-tags", true, "Pick off this set of tags from Terraform EC2 instance and place them at the end of each server entry in the Ansible inventory file (e.g. specify \"-t ansible_user\" in parameters then with a tag of Ansible_user=root in the Terraform EC2 config, you will get 1.2.3.4 ansible_user=root in the Ansible inventory file. If not present then any tags starting with \"Ansible-\" will be appended to the end of the server line in the Ansible inventory file (minus the \"Ansible-\" bit). Please do not use spaces in your tags.")
 									   .addOption("p", "prepend", true, "prepend this text to the start of the Ansible inventory file")
 									   .addOption("h", "help", false, "Print out these help options");
 		
@@ -76,18 +79,29 @@ public final class TerraformToAnsible
         
         String terraformStateFile = cmd.hasOption("tf") && !cmd.getOptionValue("tf").trim().isEmpty() ? cmd.getOptionValue("tf") : null;
         String prepend = cmd.hasOption("p") && !cmd.getOptionValue("p").trim().isEmpty() ? cmd.getOptionValue("p") : null;
+        String ansibleTags = cmd.hasOption("t") && !cmd.getOptionValue("t").trim().isEmpty() ? cmd.getOptionValue("t") : null;
 		PrintStream ansibleInventoryFile = cmd.hasOption("a") && !cmd.getOptionValue("a").trim().isEmpty() ? new PrintStream(new FileOutputStream(cmd.getOptionValue("a"))) : System.out;
-        
+		
 		if( (null == terraformStateFile) )
 		{
 			System.out.println("Reading in terraform.tfstate file from current directory.");
 			terraformStateFile = "./terraform.tfstate";
 		}
 		
-		new TerraformToAnsible(terraformStateFile, ansibleInventoryFile, prepend).run();
+		List<String> ansibleTagList;
+		if( (null != ansibleTags) && !ansibleTags.trim().isEmpty() )
+		{
+			ansibleTagList = new ArrayList<>(Arrays.asList(ansibleTags.replaceAll("\\w", "").split(",")));
+		}
+		else
+		{
+			ansibleTagList = null;
+		}
+		
+		new TerraformToAnsible(terraformStateFile, ansibleInventoryFile, prepend, ansibleTagList).run();
 	}
 	
-	public TerraformToAnsible(String from, PrintStream ansibleInventoryFile, String prepend)
+	public TerraformToAnsible(String from, PrintStream ansibleInventoryFile, String prepend, List<String> ansibleTagList)
 	{
 		terraformState = new File(from);
 		if( !terraformState.exists() || !terraformState.isFile() )
@@ -100,6 +114,7 @@ public final class TerraformToAnsible
 		else
 			ansibleInventory = System.out;
 		this.prepend = prepend;
+		this.ansibleTagList = ansibleTagList;
 	}
 	
 	/**
@@ -151,6 +166,26 @@ public final class TerraformToAnsible
 							thisHost.put(IPV4, instanceKeys.get("public_ip").toString());
 							thisHost.put(TERRAFORM_INSTANCE_NAME, key.toString());
 							thisHost.put(PRIVATE_IPV4, instanceKeys.get("private_ip").toString());
+							if( null != ansibleTagList )
+							{
+								for( String tag : ansibleTagList )
+								{
+									if( instanceKeys.containsKey(tag) )
+									{
+										thisHost.put(tag, instanceKeys.get(tag).toString());
+									}
+								}
+							}
+							else
+							{
+								for( Object tag : instanceKeys.keySet() )
+								{
+									if( tag.toString().startsWith("tags.Ansible-") )
+									{
+										thisHost.put(tag.toString().substring("tags.Ansible-".length()), instanceKeys.get(tag).toString());
+									}
+								}
+							}
 							inv.get(host).add(thisHost);
 						}
 					}
@@ -174,6 +209,11 @@ public final class TerraformToAnsible
 				this.ansibleInventory.print(keys.get(IPV4));
 				if( keys.containsKey(PRIVATE_IPV4) )
 					this.ansibleInventory.print(" private_ip=" + keys.get(PRIVATE_IPV4));
+				
+				for( String key : keys.keySet() )
+					if( !key.equals(IPV4) && !key.equals(PRIVATE_IPV4) && !key.equals(TERRAFORM_INSTANCE_NAME) )
+						this.ansibleInventory.print(" " + key + "=" + keys.get(key));
+				
 				this.ansibleInventory.print("\n");
 			}
 		}

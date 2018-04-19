@@ -25,3 +25,15 @@ I have my Ansible playbook in the `~/ansible` directory.
 <code>terraform apply && java -jar terraform_to_ansible.jar -a ~/ansible/hosts && cd ~/ansible && ansible-playbook -i hosts playbook.yml</code>
 
 I like this approach since I find it easier than using one all-encompassing utility which handles both Terraform and Ansible for you.
+
+## What is is used for?
+
+For setting up a cluster of servers where you need to know the details, such as ip addresses, of all the servers in the cluster before you start confuring each server. If you use Terraform provisioners then you only know the ip address of the current server, not the other servers you need to connect to because they may not have been created yet.
+
+I use it for setting up clusters of database servers (e.g. Mongo replica-sets). Each Mongo server needs to know the ip addresses of the other servers in the replica-set. It can only do this once the servers have been created by Terraform. Once Terraform has created all the servers which make up the replica-set then this utility can be run to create the Ansible inventory file and then, finally, the mongodb code can be configured on each server using Ansible.
+
+## Extras
+
+There is an additional command-line parameter which allows you to add content to your Ansible inventory file. It is:
+
+`-p or --prepend "prepend this text to the start of the Ansible inventory file"`
