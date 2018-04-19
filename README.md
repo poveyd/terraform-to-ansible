@@ -36,4 +36,6 @@ I use it for setting up clusters of database servers (e.g. Mongo replica-sets). 
 
 There is an additional command-line parameter which allows you to add content to your Ansible inventory file. It is:
 
-`-p or --prepend "prepend this text to the start of the Ansible inventory file"`
+`-p or --prepend "prepend this text to the start of the Ansible inventory file"`  
+
+`-t or --ansible-tags "Pick off this set of tags from Terraform EC2 instance and place them at the end of each server entry in the Ansible inventory file (e.g. specify \"-t ansible_user\" in parameters then with a tag of Ansible_user=root in the Terraform EC2 config, you will get 1.2.3.4 ansible_user=root in the Ansible inventory file. If not present then any tags starting with \"Ansible-\" will be appended to the end of the server line in the Ansible inventory file (minus the \"Ansible-\" bit). Please do not use spaces in your tags."`
