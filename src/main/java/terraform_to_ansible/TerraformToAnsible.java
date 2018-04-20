@@ -84,7 +84,7 @@ public final class TerraformToAnsible
 		
 		if( (null == terraformStateFile) )
 		{
-			System.out.println("Reading in terraform.tfstate file from current directory.");
+			System.err.println("Reading in terraform.tfstate file from current directory."); // Write to STDERR to prevent problems with redirecting output to file from STDOUT.
 			terraformStateFile = "./terraform.tfstate";
 		}
 		
