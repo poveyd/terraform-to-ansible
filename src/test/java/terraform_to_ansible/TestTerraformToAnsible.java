@@ -29,7 +29,7 @@ public class TestTerraformToAnsible
 		PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8.name());
 		
 		Map<String, List<Map<String, String>>> inv = new TerraformToAnsible(FileSystems.getDefault().getPath("src/test/resources/terraform.tfstate").toAbsolutePath().toFile().toString(),
-							   										  		ps, "# Prepended content, e.g. ansible variables, etc.", null).run();
+							   										  		ps, "# Prepended content, e.g. ansible variables, \netc.", null).run();
 		
 		assertNotNull(inv);
 		assertEquals(1, inv.keySet().size());
