@@ -8,7 +8,7 @@ When Terraform creates servers in the cloud then it saves details of all the ser
 
 ## How to use it
 
-1. git clone <repo> or just download the [jar file](https://github.com/poveyd/terraform-to-ansible/blob/master/build/libs/terraform_to_ansible-1.0.jar).
+1. git clone <repo> or just download the [jar file](https://github.com/poveyd/terraform-to-ansible/blob/master/build/libs/terraform_to_ansible-1.1.jar).
 
 2. Tag your EC2 instances in Terraform using the `Ansible_host` tag (this is case-insensitive). This tag will be used as the name of the host group in the Ansible inventory file.
 
