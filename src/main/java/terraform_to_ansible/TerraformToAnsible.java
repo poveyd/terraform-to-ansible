@@ -199,7 +199,7 @@ public final class TerraformToAnsible
 		if( null != prepend )
 			this.ansibleInventory.print("\n" + prepend.replace("\\n", "\n") + "\n");
 		
-		for( String ansibleHost : inv.keySet() )
+		for( String ansibleHost : inv.keySet().stream().sorted().collect(Collectors.toList()) )
 		{
 			this.ansibleInventory.print("\n[" + ansibleHost + "]\n");
 			
