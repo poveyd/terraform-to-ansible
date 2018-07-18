@@ -47,4 +47,25 @@ public class TestTerraformToAnsible
 		assertTrue(content.contains("\n00.00.111.22"));
 		assertTrue(content.contains("database_replica_type=master"));
 	}
+	
+	/**
+	 * Read in terraform.tfstate file and check map returned contains correct IP and host name.
+	 */
+	@Test
+	public void parseExampleEipTerraformState() throws Throwable
+	{
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8.name());
+		
+		Map<String, List<Map<String, String>>> inv = new TerraformToAnsible(FileSystems.getDefault().getPath("src/test/resources/terraform_eip.tfstate").toAbsolutePath().toFile().toString(),
+							   										  		ps, "# Prepended content, e.g. ansible variables, \netc.", null).run();
+		
+		assertNotNull(inv);
+		assertEquals(1, inv.keySet().size());
+		assertEquals(1, inv.values().size());
+		assertEquals("webserver1", inv.keySet().iterator().next());
+		assertEquals("10.0.25.64", inv.get("webserver1").get(0).get(PRIVATE_IPV4));
+		assertEquals("67.176.100.4", inv.get("webserver1").get(0).get(IPV4));
+		assertEquals("aws_instance.basic_ec2", inv.get("webserver1").get(0).get(TERRAFORM_INSTANCE_NAME));
+	}
 }

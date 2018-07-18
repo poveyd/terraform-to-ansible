@@ -125,6 +125,11 @@ public final class TerraformToAnsible
 		new HelpFormatter().printHelp(COMMAND + " - create an Ansible inventory file from a terraform.tfstate file.", options);
 	}
 	
+	/**
+	 * Parse the terraform.tfstate file and get relevant details from it.
+	 * 
+	 * @return mapping from ip address to a list of mappings from Ansible variable (including one have created here, IPV4) to variable value.
+	 */
 	public Map<String, List<Map<String, String>>> run()
 	{
 		// Key is Ansible_host (case-insensitive), value is a map from Ansible variable (including one have created here, IPV4) to variable value.
@@ -144,6 +149,8 @@ public final class TerraformToAnsible
 		
 		JSONArray modules = (JSONArray) a.get("modules");
 		
+		Map<String, String> eips = getEips(modules);
+		
 		for (Object o : modules)
 		{
 			JSONObject module = (JSONObject) o;
@@ -151,11 +158,13 @@ public final class TerraformToAnsible
 			if( module.containsKey("resources") )
 			{
 				JSONObject resources = (JSONObject) module.get("resources");
+				
 				for( Object key : resources.keySet() )
 				{
 					if( key.toString().startsWith("aws_instance") )
 					{
 						JSONObject instanceKeys = ((JSONObject) ((JSONObject) ((JSONObject) resources.get(key)).get("primary")).get("attributes"));
+						String instance = ((JSONObject) ((JSONObject) resources.get(key)).get("primary")).get("id").toString();
 						Map<String, Object> keyMapping = (Map<String, Object>) instanceKeys.keySet().stream().collect(Collectors.toMap(k -> k.toString().toLowerCase(), k -> k));
 						if( keyMapping.containsKey("tags.ansible_host") )
 						{
@@ -163,7 +172,13 @@ public final class TerraformToAnsible
 							if( !inv.containsKey(host) )
 								inv.put(host, new ArrayList<>());
 							Map<String, String> thisHost = new HashMap<>();
-							thisHost.put(IPV4, instanceKeys.get("public_ip").toString());
+							
+							// Add the EIP if one is associated with this instance.
+							if( eips.containsKey(instance) )
+								thisHost.put(IPV4, eips.get(instance));
+							else
+								thisHost.put(IPV4, instanceKeys.get("public_ip").toString());
+							
 							thisHost.put(TERRAFORM_INSTANCE_NAME, key.toString());
 							thisHost.put(PRIVATE_IPV4, instanceKeys.get("private_ip").toString());
 							if( null != ansibleTagList )
@@ -219,5 +234,39 @@ public final class TerraformToAnsible
 		}
 		
 		return inv;
+	}
+	
+	/**
+	 * Parse the modules JSON array and get any eips.
+	 * 
+	 * @param modules - JSON array giving list of resources inside terraform.tfstate.
+	 * 
+	 * @return Map from static IP address to AWS instance id.
+	 */
+	private Map<String, String> getEips(JSONArray modules)
+	{
+		Map<String, String> eips = new HashMap<>();
+		
+		// Get details of any static ips (EIPs).
+		for (Object o : modules)
+		{
+			JSONObject module = (JSONObject) o;
+			
+			if( module.containsKey("resources") )
+			{
+				JSONObject resources = (JSONObject) module.get("resources");
+				
+				for( Object key : resources.keySet() )
+				{
+					if( key.toString().startsWith("aws_eip") )
+					{
+						JSONObject instanceKeys = ((JSONObject) ((JSONObject) ((JSONObject) resources.get(key)).get("primary")).get("attributes"));
+						eips.put(instanceKeys.get("instance").toString(), instanceKeys.get("public_ip").toString());
+					}
+				}
+			}
+		}
+		
+		return eips;
 	}
 }
