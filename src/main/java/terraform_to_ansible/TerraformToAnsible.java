@@ -132,7 +132,9 @@ public final class TerraformToAnsible
 	 */
 	public Map<String, List<Map<String, String>>> run()
 	{
-		// Key is Ansible_host (case-insensitive), value is a map from Ansible variable (including one have created here, IPV4) to variable value.
+		/**
+		 * Key is Ansible_host (case-insensitive), value is a map from Ansible variable (including one have created here, IPV4) to variable value.
+		 */
 		Map<String, List<Map<String, String>>> inv = new HashMap<>();
 		
 		JSONParser parser = new JSONParser();
@@ -147,89 +149,96 @@ public final class TerraformToAnsible
 			throw new RuntimeException(e);
 		}
 		
-		JSONArray modules = (JSONArray) a.get("modules");
+		Map<String, String> eips = getEips(a);
 		
-		Map<String, String> eips = getEips(modules);
-		
-		for (Object o : modules)
+		if( a.containsKey("resources") )
 		{
-			JSONObject module = (JSONObject) o;
+			JSONArray resources = (JSONArray) a.get("resources");
 			
-			if( module.containsKey("resources") )
+			for( Object key : resources )
 			{
-				JSONObject resources = (JSONObject) module.get("resources");
-				
-				for( Object key : resources.keySet() )
-				{
-					if( key.toString().startsWith("aws_instance") )
-					{
-						JSONObject instanceKeys = ((JSONObject) ((JSONObject) ((JSONObject) resources.get(key)).get("primary")).get("attributes"));
-						String instance = ((JSONObject) ((JSONObject) resources.get(key)).get("primary")).get("id").toString();
-						Map<String, Object> keyMapping = (Map<String, Object>) instanceKeys.keySet().stream().collect(Collectors.toMap(k -> k.toString().toLowerCase(), k -> k));
-						if( keyMapping.containsKey("tags.ansible_host") )
-						{
-							String host = ((JSONObject) instanceKeys).get(keyMapping.get("tags.ansible_host")).toString();
-							if( !inv.containsKey(host) )
-								inv.put(host, new ArrayList<>());
-							Map<String, String> thisHost = new HashMap<>();
-							
-							// Add the EIP if one is associated with this instance.
-							if( eips.containsKey(instance) )
-								thisHost.put(IPV4, eips.get(instance));
-							else
-								thisHost.put(IPV4, instanceKeys.get("public_ip").toString());
-							
-							thisHost.put(TERRAFORM_INSTANCE_NAME, key.toString());
-							thisHost.put(PRIVATE_IPV4, instanceKeys.get("private_ip").toString());
-							if( null != ansibleTagList )
+			    if( ((JSONObject) key).get("type").equals("aws_instance") && ((JSONObject) key).containsKey("instances") )
+			    {
+			        JSONArray instances = (JSONArray) ((JSONObject) key).get("instances");
+			        for( Object inst : instances )
+			        {
+			            JSONObject awsInstance = (JSONObject) inst; 
+    					JSONObject instanceKeys = (JSONObject) awsInstance.get("attributes");
+    					String instance = instanceKeys.get("id").toString();
+    					if( instanceKeys.containsKey("tags") && ((JSONObject) instanceKeys.get("tags")).containsKey("Ansible_host") )
+    					{
+    					    // Now get Ansible_host
+                            Map<String, Object> tagMapping = (Map<String, Object>) ((JSONObject) instanceKeys.get("tags")).keySet().stream().collect(Collectors.toMap(k -> k.toString().toLowerCase(), k -> ((JSONObject) instanceKeys.get("tags")).get(k)));
+    						String host = tagMapping.get("ansible_host").toString();
+    						if( !inv.containsKey(host) )
+    							inv.put(host, new ArrayList<>());
+    						Map<String, String> thisHost = new HashMap<>();
+    						
+    						// Add the EIP if one is associated with this instance.
+    						if( eips.containsKey(instance) )
+    							thisHost.put(IPV4, eips.get(instance));
+    						else
+    							thisHost.put(IPV4, instanceKeys.get("public_ip").toString());
+    						
+    						if( ((JSONObject) key).containsKey("module") )
+    						    thisHost.put(TERRAFORM_INSTANCE_NAME, ((JSONObject) key).get("module") + " / " + ((JSONObject) key).get("name"));
+    						else
+    						    thisHost.put(TERRAFORM_INSTANCE_NAME, ((JSONObject) key).get("name").toString());
+    						thisHost.put(PRIVATE_IPV4, instanceKeys.get("private_ip").toString());
+    						
+    						if( null != ansibleTagList )
+    						{
+    							for( String tag : ansibleTagList )
+    							{
+    								if( tagMapping.containsKey(tag) )
+    								{
+    									thisHost.put(tag, tagMapping.get(tag).toString());
+    								}
+    							}
+    						}
+    						
+							for( String tag : tagMapping.keySet() )
 							{
-								for( String tag : ansibleTagList )
+								if( tag.matches("^ansible[-_].*") )
 								{
-									if( instanceKeys.containsKey(tag) )
-									{
-										thisHost.put(tag, instanceKeys.get(tag).toString());
-									}
+									thisHost.put(tag.substring("ansible_".length()), tagMapping.get(tag).toString());
 								}
 							}
-							else
-							{
-								for( Object tag : instanceKeys.keySet() )
-								{
-									if( tag.toString().startsWith("tags.Ansible-") )
-									{
-										thisHost.put(tag.toString().substring("tags.Ansible-".length()), instanceKeys.get(tag).toString());
-									}
-								}
-							}
-							inv.get(host).add(thisHost);
-						}
-					}
-				}
+    						inv.get(host).add(thisHost);
+    					}
+                        /*
+    					*/
+			        }
+			    }
 			}
-			
+		}
+		else
+		{
+		    System.err.println("We could not find any AWS resources inside the file " + this.terraformState.getAbsolutePath());
+		    System.exit(1);
 		}
 		
-		this.ansibleInventory.print("# Auto-generated by " + this.getClass().getSimpleName() + ".\n");
+		ansibleInventory.print("# Auto-generated by " + this.getClass().getSimpleName() + ".\n");
 		
 		if( null != prepend )
-			this.ansibleInventory.print("\n" + prepend.replace("\\n", "\n") + "\n");
+			ansibleInventory.print("\n" + prepend.replace("\\n", "\n") + "\n");
 		
 		for( String ansibleHost : inv.keySet().stream().sorted().collect(Collectors.toList()) )
 		{
-			this.ansibleInventory.print("\n[" + ansibleHost + "]\n");
+			ansibleInventory.print("\n[" + ansibleHost + "]\n");
 			
 			for( Map<String, String> keys : inv.get(ansibleHost) )
 			{
-				this.ansibleInventory.print("# Terraform instance name: " + keys.get(TERRAFORM_INSTANCE_NAME) + "\n");
-				this.ansibleInventory.print(keys.get(IPV4));
+				ansibleInventory.print("# Terraform instance name: " + keys.get(TERRAFORM_INSTANCE_NAME) + "\n");
+				ansibleInventory.print(keys.get(IPV4));
 				if( keys.containsKey(PRIVATE_IPV4) )
-					this.ansibleInventory.print(" private_ip=" + keys.get(PRIVATE_IPV4));
+					ansibleInventory.print(" private_ip=" + keys.get(PRIVATE_IPV4));
 				
 				for( String key : keys.keySet() )
 					if( !key.equals(IPV4) && !key.equals(PRIVATE_IPV4) && !key.equals(TERRAFORM_INSTANCE_NAME) )
-						this.ansibleInventory.print(" " + key + "=" + keys.get(key));
+						ansibleInventory.print(" " + key + "=" + keys.get(key));
 				
-				this.ansibleInventory.print("\n");
+				ansibleInventory.print("\n");
 			}
 		}
 		
@@ -243,26 +252,22 @@ public final class TerraformToAnsible
 	 * 
 	 * @return Map from static IP address to AWS instance id.
 	 */
-	private Map<String, String> getEips(JSONArray modules)
+	private Map<String, String> getEips(JSONObject module)
 	{
 		Map<String, String> eips = new HashMap<>();
 		
 		// Get details of any static ips (EIPs).
-		for (Object o : modules)
+		if( module.containsKey("resources") )
 		{
-			JSONObject module = (JSONObject) o;
+			JSONArray resources = (JSONArray) module.get("resources");
 			
-			if( module.containsKey("resources") )
+			for( Object key : resources )
 			{
-				JSONObject resources = (JSONObject) module.get("resources");
-				
-				for( Object key : resources.keySet() )
+				if( ((JSONObject) key).containsKey("type") && ((JSONObject) key).get("type").equals("aws_eip") ) // key.toString().startsWith("aws_eip") )
 				{
-					if( key.toString().startsWith("aws_eip") )
-					{
-						JSONObject instanceKeys = ((JSONObject) ((JSONObject) ((JSONObject) resources.get(key)).get("primary")).get("attributes"));
-						eips.put(instanceKeys.get("instance").toString(), instanceKeys.get("public_ip").toString());
-					}
+				    JSONObject eip = ((JSONObject) key);
+					JSONObject instanceKeys = (JSONObject) ((JSONObject) ((JSONArray) eip.get("instances")).get(0)).get("attributes");
+					eips.put(instanceKeys.get("instance").toString(), instanceKeys.get("public_ip").toString());
 				}
 			}
 		}
