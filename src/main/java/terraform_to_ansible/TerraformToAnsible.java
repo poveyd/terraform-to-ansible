@@ -91,7 +91,7 @@ public final class TerraformToAnsible
 		List<String> ansibleTagList;
 		if( (null != ansibleTags) && !ansibleTags.trim().isEmpty() )
 		{
-			ansibleTagList = new ArrayList<>(Arrays.asList(ansibleTags.replaceAll("\\w", "").split(",")));
+			ansibleTagList = new ArrayList<>(Arrays.asList(ansibleTags.replaceAll("\\s", "").split(",")));
 		}
 		else
 		{
